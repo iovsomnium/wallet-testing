@@ -1,8 +1,19 @@
 import { useEffect, useState } from "react";
-import { PublicKey, Transaction, Connection, LAMPORTS_PER_SOL, StakeProgram, Authorized, Lockup } from "@solana/web3.js";
+import {
+  PublicKey,
+  Transaction,
+  Connection,
+  LAMPORTS_PER_SOL,
+  StakeProgram,
+  Authorized,
+  Lockup,
+} from "@solana/web3.js";
 
-import { WelldoneWalletAdapter } from './welldone';
+// import Web3  from "web3";
+import { WelldoneWalletAdapter } from "./welldone";
 import "./App.css";
+
+// const web3 = new Web3("https://ethereum-rinkeby-rpc.allthatnode.com");
 
 type DisplayEncoding = "utf8" | "hex";
 type PhantomEvent = "disconnect" | "connect" | "accountChanged";
@@ -39,6 +50,9 @@ function App() {
   const [walletKey, setWalletKey] = useState<PhantomProvider | undefined>(
     undefined
   );
+
+  // const [metamaskKey, setMetamaskKey] = useState<string>();
+  const [keplrKey, setKeplrKey] = useState<string>();
 
   /**
    * @description gets Phantom provider, if it exists
@@ -82,64 +96,191 @@ function App() {
     }
   };
 
-  async function getStakeAccount(stakeAccountSeed: string, fromPublicKey: PublicKey) {
-  const stakePubkey = await PublicKey.createWithSeed(
-    fromPublicKey,
-    stakeAccountSeed,
-    StakeProgram.programId
-  );
-  // eslint-disable-next-line no-console
-  console.log("stakePubkey - ", stakePubkey.toString());
-  return stakePubkey;
-}
+  // const connectMetamask = async () => {
+  //   // @ts-ignore
+  //   const { ethereum } = window;
 
-  const sendTx = async () => { 
+  //   if (ethereum) {
+  //     try {
+  //       const response = await ethereum.request({
+  //         method: "eth_requestAccounts",
+  //       });
+  //       console.log(response);
+  //       setMetamaskKey(response);
+  //     } catch (error) {}
+  //   }
+  // };
+
+  // const disconnectMetamask = async () => {
+  //   // @ts-ignore
+  //   const { ethereum } = window;
+
+  //   if (metamaskKey && ethereum) {
+  //     await ethereum.request({
+  //       method: "eth_requestAccounts",
+  //       params: [{ eth_accounts: {} }],
+  //     });
+  //     setMetamaskKey(undefined);
+  //   }
+  // };
+
+  const connectKeplr = async () => {
+    // @ts-ignore
+    const { keplr } = window;
+
+    if (keplr) {
+      try {
+        const chainId = "cosmoshub-4";
+        await keplr.enable(chainId);
+        const offLineSigner = keplr.getOfflineSigner(chainId);
+        console.log(1111, offLineSigner);
+        const accounts = await offLineSigner.getAccounts();
+        console.log(1111, accounts);
+        setKeplrKey(accounts[0].address);
+      } catch (error) {
+        console.log(error);
+      }
+    }
+  };
+
+  const disconnectKeplr = async () => {
+    // @ts-ignore
+    const { keplr } = window;
+
+    if (keplrKey && keplr) {
+      await keplr.disable();
+    }
+  };
+
+  async function getStakeAccount(
+    stakeAccountSeed: string,
+    fromPublicKey: PublicKey
+  ) {
+    const stakePubkey = await PublicKey.createWithSeed(
+      fromPublicKey,
+      stakeAccountSeed,
+      StakeProgram.programId
+    );
+    // eslint-disable-next-line no-console
+    console.log("stakePubkey - ", stakePubkey.toString());
+    return stakePubkey;
+  }
+
+  const sendTx = async () => {
     // @ts-ignore
     const { solana } = window;
 
-    const network = "https://api.devnet.solana.com"
+    const network = "https://api.devnet.solana.com";
     const connection = new Connection(network);
     const RECENTBLOCKHASH = await connection.getLatestBlockhash();
-    const ACCOUNTPUBKEY = new PublicKey("8cXTm3AgfW6xVduFzC64FW1Pjx6aPPmtNwySqVLLJRq7");
+    const ACCOUNTPUBKEY = new PublicKey(
+      "8cXTm3AgfW6xVduFzC64FW1Pjx6aPPmtNwySqVLLJRq7"
+    );
     const timeStamp = new Date().getTime();
     const STAKEACCOUNTSEED = timeStamp.toString();
     const stakePubkey = await getStakeAccount(STAKEACCOUNTSEED, ACCOUNTPUBKEY);
-    const votePubkey = new PublicKey("3NZ1Wa2spvK6dpbVBhgTh2qfjzNA6wxEAdXMsJJQCDQG");
+    const votePubkey = new PublicKey(
+      "3NZ1Wa2spvK6dpbVBhgTh2qfjzNA6wxEAdXMsJJQCDQG"
+    );
     const transaction = new Transaction({
       recentBlockhash: RECENTBLOCKHASH.blockhash,
       feePayer: ACCOUNTPUBKEY,
     });
     transaction.add(
-    StakeProgram.createAccountWithSeed(
-      {
+      StakeProgram.createAccountWithSeed({
         fromPubkey: ACCOUNTPUBKEY,
         stakePubkey: stakePubkey,
         basePubkey: ACCOUNTPUBKEY,
         seed: STAKEACCOUNTSEED,
         authorized: new Authorized(ACCOUNTPUBKEY, ACCOUNTPUBKEY),
         lockup: new Lockup(0, 0, new PublicKey(0)),
-        lamports: Number(0.1) * LAMPORTS_PER_SOL
-      }
-    ),
-    // Delegate
-    StakeProgram.delegate(
-      {
+        lamports: Number(0.1) * LAMPORTS_PER_SOL,
+      }),
+      // Delegate
+      StakeProgram.delegate({
         stakePubkey: stakePubkey,
         authorizedPubkey: ACCOUNTPUBKEY,
-        votePubkey: votePubkey
-      }
-    )
+        votePubkey: votePubkey,
+      })
     );
 
-
-    if (walletKey && solana) { 
+    if (walletKey && solana) {
       const { signature } = await solana.signAndSendTransaction(transaction);
       await connection.confirmTransaction(signature);
       const wallet = new WelldoneWalletAdapter();
       // await wallet.connect();
       await wallet.signAndSendTransaction(transaction);
     }
-  }
+  };
+
+  // const sendMetamaskTx = async () => {
+  //   // @ts-ignore
+  //   const { ethereum } = window;
+
+  //   try {
+  //     const transactionParameters = {
+  //       from: ethereum.selectedAddress,
+  //       to: ethereum.selectedAddress,
+  //       value: Number(30000000000000000).toString(16),
+  //       gasPrice: Number("3000000000000").toString(16),
+  //       gas: "0x2710",
+  //       // data: '',
+  //     };
+
+  //     const txHash = await ethereum.request({
+  //       method: "eth_sendTransaction",
+  //       params: [transactionParameters],
+  //     });
+
+  //     console.log(119, txHash);
+  //   } catch (error) {}
+  // };
+
+  const addChain = async () => {
+    // @ts-ignore
+    const { keplr } = window;
+    await keplr.experimentalSuggestChain({
+      chainId: "mychain-1",
+      chainName: "my new chain",
+      rpc: "http://localhost:26657",
+      rest: "http://localhost:1317",
+      bip44: {
+        coinType: 118,
+      },
+      bech32Config: {
+        bech32PrefixAccAddr: "cosmos",
+        bech32PrefixAccPub: "cosmospub",
+        bech32PrefixValAddr: "cosmosvaloper",
+        bech32PrefixValPub: "cosmosvaloperpub",
+        bech32PrefixConsAddr: "cosmosvalcons",
+        bech32PrefixConsPub: "cosmosvalconspub",
+      },
+      currencies: [
+        {
+          coinDenom: "stakes",
+          coinMinimalDenom: "ustakes",
+          coinDecimals: 6,
+        },
+      ],
+      feeCurrencies: [
+        {
+          coinDenom: "stakes",
+          coinMinimalDenom: "ustakes",
+          coinDecimals: 6,
+        },
+      ],
+      stakeCurrency: {
+        coinDenom: "stakes",
+        coinMinimalDenom: "ustakes",
+        coinDecimals: 6,
+      },
+      gasPriceStep: {
+        low: 0.01,
+        average: 0.025,
+        high: 0.03,
+      },
+    });
+  };
 
   // detect phantom provider exists
   useEffect(() => {
@@ -152,24 +293,50 @@ function App() {
   return (
     <div className="App">
       <header className="App-header">
-        <h2>Tutorial: Connect to Phantom Wallet</h2>
-        {provider && !walletKey && (
-          <button
-            style={{
-              fontSize: "16px",
-              padding: "15px",
-              fontWeight: "bold",
-              borderRadius: "5px",
-            }}
-            onClick={connectWallet}
-          >
-            Connect to Phantom Wallet
-          </button>
+        <h2>Connect to Wallet</h2>
+        {provider && !walletKey && !keplrKey && (
+          <>
+            <button
+              style={{
+                fontSize: "16px",
+                padding: "15px",
+                fontWeight: "bold",
+                borderRadius: "5px",
+              }}
+              onClick={connectWallet}
+            >
+              Connect to Phantom Wallet
+            </button>
+            {/* <button
+              style={{
+                fontSize: "16px",
+                padding: "15px",
+                fontWeight: "bold",
+                borderRadius: "5px",
+              }}
+              onClick={connectMetamask}
+            >
+              Connect to Meta mask
+            </button> */}
+            <button
+              style={{
+                fontSize: "16px",
+                padding: "15px",
+                fontWeight: "bold",
+                borderRadius: "5px",
+              }}
+              onClick={connectKeplr}
+            >
+              Connect to keplr
+            </button>
+          </>
         )}
 
-        {provider && walletKey && (
+        {provider && walletKey && !keplrKey && (
           <div>
-            <p><>Connected account {walletKey}</></p>
+            <p>
+              <>Connected account {walletKey}</>
+            </p>
 
             <button
               style={{
@@ -183,7 +350,7 @@ function App() {
             >
               Disconnect
             </button>
-              <button
+            <button
               style={{
                 fontSize: "16px",
                 padding: "15px",
@@ -197,23 +364,81 @@ function App() {
             </button>
           </div>
         )}
+        {/* {provider && !walletKey && metamaskKey && !keplrKey && (
+          <div>
+            <p>
+              <>Connected account {metamaskKey}</>
+            </p>
 
-        {!provider && (
-          <p>
-            No provider found. Install{" "}
-            <a href="https://phantom.app/">Phantom Browser extension</a>
-          </p>
+            <button
+              style={{
+                fontSize: "16px",
+                padding: "15px",
+                fontWeight: "bold",
+                borderRadius: "5px",
+                margin: "15px auto",
+              }}
+              onClick={disconnectMetamask}
+            >
+              Disconnect
+            </button>
+            <button
+              style={{
+                fontSize: "16px",
+                padding: "15px",
+                fontWeight: "bold",
+                borderRadius: "5px",
+                margin: "15px auto",
+              }}
+              onClick={sendMetamaskTx}
+            >
+              SendTX
+            </button>
+          </div>
+        )} */}
+
+        {provider && !walletKey && keplrKey && (
+          <div>
+            <p>
+              <>Connected account {keplrKey}</>
+            </p>
+
+            <button
+              style={{
+                fontSize: "16px",
+                padding: "15px",
+                fontWeight: "bold",
+                borderRadius: "5px",
+                margin: "15px auto",
+              }}
+              onClick={disconnectKeplr}
+            >
+              Disconnect
+            </button>
+            <button
+              style={{
+                fontSize: "16px",
+                padding: "15px",
+                fontWeight: "bold",
+                borderRadius: "5px",
+                margin: "15px auto",
+              }}
+              onClick={addChain}
+            >
+              add Test Chain
+            </button>
+          </div>
         )}
 
         <p>
           Built by{" "}
           <a
-            href="https://twitter.com/arealesramirez"
+            href="https://twitter.com/LeeUiHyeon"
             target="_blank"
             rel="noreferrer"
             className="twitter-link"
           >
-            @arealesramirez
+            @LeeUiHyeon
           </a>
         </p>
       </header>
