@@ -52,7 +52,7 @@ function App() {
   );
 
   // const [metamaskKey, setMetamaskKey] = useState<string>();
-  const [keplrKey, setKeplrKey] = useState<string>();
+  const [welldoneKey, setWelldoneKey] = useState<string>();
 
   /**
    * @description gets Phantom provider, if it exists
@@ -124,19 +124,16 @@ function App() {
   //   }
   // };
 
-  const connectKeplr = async () => {
+  const connectWelldone = async () => {
     // @ts-ignore
-    const { keplr } = window;
+    const { dapp } = window;
 
-    if (keplr) {
+    if (dapp) {
       try {
-        const chainId = "cosmoshub-4";
-        await keplr.enable(chainId);
-        const offLineSigner = keplr.getOfflineSigner(chainId);
-        console.log(1111, offLineSigner);
-        const accounts = await offLineSigner.getAccounts();
-        console.log(1111, accounts);
-        setKeplrKey(accounts[0].address);
+        const accounts = await dapp.request("cosmos", {
+          method: "dapp:accounts",
+        });
+        setWelldoneKey(accounts.cosmos.address);
       } catch (error) {
         console.log(error);
       }
@@ -147,7 +144,7 @@ function App() {
     // @ts-ignore
     const { keplr } = window;
 
-    if (keplrKey && keplr) {
+    if (welldoneKey && keplr) {
       await keplr.disable();
     }
   };
@@ -237,48 +234,55 @@ function App() {
   // };
 
   const addChain = async () => {
-    // @ts-ignore
-    const { keplr } = window;
-    await keplr.experimentalSuggestChain({
-      chainId: "mychain-1",
-      chainName: "my new chain",
-      rpc: "http://localhost:26657",
-      rest: "http://localhost:1317",
+    const chainData = {
+      chainId: "osmo-test-4",
+      chainName: "Osmosis Testnet",
+      rpc: "https://osmosis-testnet-rpc.allthatnode.com:26657/",
+      rest: "https://osmosis-testnet-rpc.allthatnode.com:1317/",
       bip44: {
         coinType: 118,
       },
       bech32Config: {
-        bech32PrefixAccAddr: "cosmos",
-        bech32PrefixAccPub: "cosmospub",
-        bech32PrefixValAddr: "cosmosvaloper",
-        bech32PrefixValPub: "cosmosvaloperpub",
-        bech32PrefixConsAddr: "cosmosvalcons",
-        bech32PrefixConsPub: "cosmosvalconspub",
+        bech32PrefixAccAddr: "osmo",
+        bech32PrefixAccPub: "osmopub",
+        bech32PrefixValAddr: "osmovaloper",
+        bech32PrefixValPub: "osmovaloperpub",
+        bech32PrefixConsAddr: "osmovalcons",
+        bech32PrefixConsPub: "osmovalconspub",
+      },
+      stakeCurrency: {
+        coinDenom: "OSMO",
+        coinMinimalDenom: "uosmo",
+        coinDecimals: 6,
       },
       currencies: [
         {
-          coinDenom: "stakes",
-          coinMinimalDenom: "ustakes",
+          coinDenom: "OSMO",
+          coinMinimalDenom: "uosmo",
           coinDecimals: 6,
         },
       ],
       feeCurrencies: [
         {
-          coinDenom: "stakes",
-          coinMinimalDenom: "ustakes",
+          coinDenom: "OSMO",
+          coinMinimalDenom: "uosmo",
           coinDecimals: 6,
         },
       ],
-      stakeCurrency: {
-        coinDenom: "stakes",
-        coinMinimalDenom: "ustakes",
-        coinDecimals: 6,
-      },
-      gasPriceStep: {
-        low: 0.01,
-        average: 0.025,
-        high: 0.03,
-      },
+      explorer: "https://testnet.mintscan.io/osmosis-testnet",
+      coinType: 118,
+      // gasPriceStep: {
+      //   low: 0.01,
+      //   average: 0.025,
+      //   high: 0.05
+      // }
+    };
+
+    // @ts-ignore
+    const { dapp } = window;
+    await dapp.request("cosmos", {
+      method: "dapp:addChain",
+      params: [chainData],
     });
   };
 
@@ -294,7 +298,7 @@ function App() {
     <div className="App">
       <header className="App-header">
         <h2>Connect to Wallet</h2>
-        {provider && !walletKey && !keplrKey && (
+        {provider && !walletKey && !welldoneKey && (
           <>
             <button
               style={{
@@ -325,14 +329,14 @@ function App() {
                 fontWeight: "bold",
                 borderRadius: "5px",
               }}
-              onClick={connectKeplr}
+              onClick={connectWelldone}
             >
-              Connect to keplr
+              Connect to Welldone
             </button>
           </>
         )}
 
-        {provider && walletKey && !keplrKey && (
+        {provider && walletKey && !welldoneKey && (
           <div>
             <p>
               <>Connected account {walletKey}</>
@@ -364,7 +368,7 @@ function App() {
             </button>
           </div>
         )}
-        {/* {provider && !walletKey && metamaskKey && !keplrKey && (
+        {/* {provider && !walletKey && metamaskKey && !WelldoneKey && (
           <div>
             <p>
               <>Connected account {metamaskKey}</>
@@ -397,10 +401,10 @@ function App() {
           </div>
         )} */}
 
-        {provider && !walletKey && keplrKey && (
+        {provider && !walletKey && welldoneKey && (
           <div>
             <p>
-              <>Connected account {keplrKey}</>
+              <>Connected account {welldoneKey}</>
             </p>
 
             <button
