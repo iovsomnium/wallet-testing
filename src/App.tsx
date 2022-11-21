@@ -1,7 +1,14 @@
 import { useEffect, useState } from "react";
-import { PublicKey, Transaction, Connection, LAMPORTS_PER_SOL, StakeProgram, Authorized, Lockup } from "@solana/web3.js";
+import {
+  PublicKey,
+  Transaction,
+  Connection,
+  LAMPORTS_PER_SOL,
+  StakeProgram,
+  Authorized,
+  Lockup,
+} from "@solana/web3.js";
 
-import { WelldoneWalletAdapter } from './welldone';
 import "./App.css";
 
 type DisplayEncoding = "utf8" | "hex";
@@ -43,12 +50,17 @@ function App() {
   /**
    * @description gets Phantom provider, if it exists
    */
-  const getProvider = (): PhantomProvider | undefined => {
-    if ("solana" in window) {
+  const getProvider = () => {
+    if ("phantom" in window) {
       // @ts-ignore
-      const provider = window.solana as any;
-      if (provider.isPhantom) return provider as PhantomProvider;
+      const provider = window.phantom?.solana;
+
+      if (provider?.isPhantom) {
+        return provider;
+      }
     }
+
+    window.open("https://phantom.app/", "_blank");
   };
 
   /*
@@ -82,64 +94,61 @@ function App() {
     }
   };
 
-  async function getStakeAccount(stakeAccountSeed: string, fromPublicKey: PublicKey) {
-  const stakePubkey = await PublicKey.createWithSeed(
-    fromPublicKey,
-    stakeAccountSeed,
-    StakeProgram.programId
-  );
-  // eslint-disable-next-line no-console
-  console.log("stakePubkey - ", stakePubkey.toString());
-  return stakePubkey;
-}
+  async function getStakeAccount(
+    stakeAccountSeed: string,
+    fromPublicKey: PublicKey
+  ) {
+    const stakePubkey = await PublicKey.createWithSeed(
+      fromPublicKey,
+      stakeAccountSeed,
+      StakeProgram.programId
+    );
+    // eslint-disable-next-line no-console
+    console.log("stakePubkey - ", stakePubkey.toString());
+    return stakePubkey;
+  }
 
-  const sendTx = async () => { 
-    // @ts-ignore
-    const { solana } = window;
+  const sendTx = async () => {
+    const provider = getProvider();
 
-    const network = "https://api.devnet.solana.com"
+    const network = "https://api.devnet.solana.com";
     const connection = new Connection(network);
     const RECENTBLOCKHASH = await connection.getLatestBlockhash();
-    const ACCOUNTPUBKEY = new PublicKey("8cXTm3AgfW6xVduFzC64FW1Pjx6aPPmtNwySqVLLJRq7");
+    const ACCOUNTPUBKEY = provider.publicKey.toString();
     const timeStamp = new Date().getTime();
     const STAKEACCOUNTSEED = timeStamp.toString();
     const stakePubkey = await getStakeAccount(STAKEACCOUNTSEED, ACCOUNTPUBKEY);
-    const votePubkey = new PublicKey("3NZ1Wa2spvK6dpbVBhgTh2qfjzNA6wxEAdXMsJJQCDQG");
+    const votePubkey = new PublicKey(
+      "3NZ1Wa2spvK6dpbVBhgTh2qfjzNA6wxEAdXMsJJQCDQG"
+    );
     const transaction = new Transaction({
       recentBlockhash: RECENTBLOCKHASH.blockhash,
       feePayer: ACCOUNTPUBKEY,
     });
     transaction.add(
-    StakeProgram.createAccountWithSeed(
-      {
+      StakeProgram.createAccountWithSeed({
         fromPubkey: ACCOUNTPUBKEY,
         stakePubkey: stakePubkey,
         basePubkey: ACCOUNTPUBKEY,
         seed: STAKEACCOUNTSEED,
         authorized: new Authorized(ACCOUNTPUBKEY, ACCOUNTPUBKEY),
         lockup: new Lockup(0, 0, new PublicKey(0)),
-        lamports: Number(0.1) * LAMPORTS_PER_SOL
-      }
-    ),
-    // Delegate
-    StakeProgram.delegate(
-      {
+        lamports: Number(0.1) * LAMPORTS_PER_SOL,
+      }),
+      // Delegate
+      StakeProgram.delegate({
         stakePubkey: stakePubkey,
         authorizedPubkey: ACCOUNTPUBKEY,
-        votePubkey: votePubkey
-      }
-    )
+        votePubkey: votePubkey,
+      })
     );
 
-
-    if (walletKey && solana) { 
-      const { signature } = await solana.signAndSendTransaction(transaction);
+    if (walletKey && provider) {
+      const { signature } = await provider.signAndSendTransaction(transaction);
+      console.log(signature);
       await connection.confirmTransaction(signature);
-      const wallet = new WelldoneWalletAdapter();
-      // await wallet.connect();
-      await wallet.signAndSendTransaction(transaction);
     }
-  }
+  };
 
   // detect phantom provider exists
   useEffect(() => {
@@ -169,7 +178,9 @@ function App() {
 
         {provider && walletKey && (
           <div>
-            <p><>Connected account {walletKey}</></p>
+            <p>
+              <>Connected account {walletKey}</>
+            </p>
 
             <button
               style={{
@@ -183,7 +194,7 @@ function App() {
             >
               Disconnect
             </button>
-              <button
+            <button
               style={{
                 fontSize: "16px",
                 padding: "15px",
