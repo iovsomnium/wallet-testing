@@ -12,6 +12,9 @@ import {
 // import Web3  from "web3";
 import { WelldoneWalletAdapter } from "./welldone";
 import "./App.css";
+import { providers, transactions, utils } from "near-api-js";
+import { ConnectionInfo } from "near-api-js/lib/utils/web";
+import BN from "bn.js";
 
 // const web3 = new Web3("https://ethereum-rinkeby-rpc.allthatnode.com");
 
@@ -130,22 +133,22 @@ function App() {
 
     if (dapp) {
       try {
-        const accounts = await dapp.request("cosmos", {
+        const accounts = await dapp.request("near", {
           method: "dapp:accounts",
         });
-        setWelldoneKey(accounts.cosmos.address);
+        setWelldoneKey(accounts.near.address);
       } catch (error) {
         console.log(error);
       }
     }
   };
 
-  const disconnectKeplr = async () => {
+  const disconnectWelldone = async () => {
     // @ts-ignore
-    const { keplr } = window;
+    const { dapp } = window;
 
-    if (welldoneKey && keplr) {
-      await keplr.disable();
+    if (welldoneKey && dapp) {
+      await dapp.disable();
     }
   };
 
@@ -210,79 +213,40 @@ function App() {
     }
   };
 
-  // const sendMetamaskTx = async () => {
-  //   // @ts-ignore
-  //   const { ethereum } = window;
-
-  //   try {
-  //     const transactionParameters = {
-  //       from: ethereum.selectedAddress,
-  //       to: ethereum.selectedAddress,
-  //       value: Number(30000000000000000).toString(16),
-  //       gasPrice: Number("3000000000000").toString(16),
-  //       gas: "0x2710",
-  //       // data: '',
-  //     };
-
-  //     const txHash = await ethereum.request({
-  //       method: "eth_sendTransaction",
-  //       params: [transactionParameters],
-  //     });
-
-  //     console.log(119, txHash);
-  //   } catch (error) {}
-  // };
-
-  const addChain = async () => {
-    const chainData = {
-      chainId: "osmo-test-4",
-      chainName: "Osmosis Testnet",
-      rpc: "https://osmosis-testnet-rpc.allthatnode.com:26657/",
-      rest: "https://osmosis-testnet-rpc.allthatnode.com:1317/",
-      bip44: {
-        coinType: 118,
-      },
-      bech32Config: {
-        bech32PrefixAccAddr: "osmo",
-        bech32PrefixAccPub: "osmopub",
-        bech32PrefixValAddr: "osmovaloper",
-        bech32PrefixValPub: "osmovaloperpub",
-        bech32PrefixConsAddr: "osmovalcons",
-        bech32PrefixConsPub: "osmovalconspub",
-      },
-      stakeCurrency: {
-        coinDenom: "OSMO",
-        coinMinimalDenom: "uosmo",
-        coinDecimals: 6,
-      },
-      currencies: [
-        {
-          coinDenom: "OSMO",
-          coinMinimalDenom: "uosmo",
-          coinDecimals: 6,
-        },
-      ],
-      feeCurrencies: [
-        {
-          coinDenom: "OSMO",
-          coinMinimalDenom: "uosmo",
-          coinDecimals: 6,
-        },
-      ],
-      explorer: "https://testnet.mintscan.io/osmosis-testnet",
-      coinType: 118,
-      // gasPriceStep: {
-      //   low: 0.01,
-      //   average: 0.025,
-      //   high: 0.05
-      // }
-    };
-
+  const sendNearTx = async () => {
     // @ts-ignore
+
     const { dapp } = window;
-    await dapp.request("cosmos", {
-      method: "dapp:addChain",
-      params: [chainData],
+    const accounts = await dapp.request("near", {
+      method: "dapp:accounts",
+    });
+    const rpc: ConnectionInfo = "https://rpc.testnet.near.org";
+
+    const provider = new providers.JsonRpcProvider(rpc);
+    const accountLocal = accounts.address;
+    const publicKey = accounts.pubKey;
+    const signerId = accountLocal;
+    const accessKey = await provider.query(
+      `access_key/${signerId}/${publicKey}`,
+      ""
+    );
+    const actions = [transactions.transfer(new BN(10))];
+    const recentBlockHash = utils.serialize.base_decode(accessKey.block_hash);
+
+    const transaction = transactions.createTransaction(
+      accountLocal,
+      utils.PublicKey.fromString(publicKey),
+      "9bfd12934cd6fdd09199e2e267803c70bd7c6cb40832ac6f29811948dde2b723",
+      accessKey.nonce + 1,
+      actions,
+      recentBlockHash
+    );
+
+    const bytes = Buffer.from(transaction.encode()).toString("base64");
+
+    await dapp.request("near", {
+      method: "dapp:sendTransaction",
+      params: [`${bytes}`],
     });
   };
 
@@ -311,17 +275,6 @@ function App() {
             >
               Connect to Phantom Wallet
             </button>
-            {/* <button
-              style={{
-                fontSize: "16px",
-                padding: "15px",
-                fontWeight: "bold",
-                borderRadius: "5px",
-              }}
-              onClick={connectMetamask}
-            >
-              Connect to Meta mask
-            </button> */}
             <button
               style={{
                 fontSize: "16px",
@@ -368,38 +321,6 @@ function App() {
             </button>
           </div>
         )}
-        {/* {provider && !walletKey && metamaskKey && !WelldoneKey && (
-          <div>
-            <p>
-              <>Connected account {metamaskKey}</>
-            </p>
-
-            <button
-              style={{
-                fontSize: "16px",
-                padding: "15px",
-                fontWeight: "bold",
-                borderRadius: "5px",
-                margin: "15px auto",
-              }}
-              onClick={disconnectMetamask}
-            >
-              Disconnect
-            </button>
-            <button
-              style={{
-                fontSize: "16px",
-                padding: "15px",
-                fontWeight: "bold",
-                borderRadius: "5px",
-                margin: "15px auto",
-              }}
-              onClick={sendMetamaskTx}
-            >
-              SendTX
-            </button>
-          </div>
-        )} */}
 
         {provider && !walletKey && welldoneKey && (
           <div>
@@ -415,7 +336,7 @@ function App() {
                 borderRadius: "5px",
                 margin: "15px auto",
               }}
-              onClick={disconnectKeplr}
+              onClick={disconnectWelldone}
             >
               Disconnect
             </button>
@@ -427,9 +348,9 @@ function App() {
                 borderRadius: "5px",
                 margin: "15px auto",
               }}
-              onClick={addChain}
+              onClick={sendNearTx}
             >
-              add Test Chain
+              send Transaction
             </button>
           </div>
         )}
