@@ -9,10 +9,11 @@ import {
   Lockup,
 } from "@solana/web3.js";
 
-// import Web3  from "web3";
 import { WelldoneWalletAdapter } from "./welldone";
 import "./App.css";
+import Web3 from "web3";
 
+const abi = require("./abi.json");
 // const web3 = new Web3("https://ethereum-rinkeby-rpc.allthatnode.com");
 
 type DisplayEncoding = "utf8" | "hex";
@@ -51,8 +52,8 @@ function App() {
     undefined
   );
 
-  // const [metamaskKey, setMetamaskKey] = useState<string>();
-  const [welldoneKey, setWelldoneKey] = useState<string>();
+  const [metamaskKey, setMetamaskKey] = useState<string>();
+  // const [welldoneKey, setWelldoneKey] = useState<string>();
 
   /**
    * @description gets Phantom provider, if it exists
@@ -96,58 +97,58 @@ function App() {
     }
   };
 
-  // const connectMetamask = async () => {
-  //   // @ts-ignore
-  //   const { ethereum } = window;
-
-  //   if (ethereum) {
-  //     try {
-  //       const response = await ethereum.request({
-  //         method: "eth_requestAccounts",
-  //       });
-  //       console.log(response);
-  //       setMetamaskKey(response);
-  //     } catch (error) {}
-  //   }
-  // };
-
-  // const disconnectMetamask = async () => {
-  //   // @ts-ignore
-  //   const { ethereum } = window;
-
-  //   if (metamaskKey && ethereum) {
-  //     await ethereum.request({
-  //       method: "eth_requestAccounts",
-  //       params: [{ eth_accounts: {} }],
-  //     });
-  //     setMetamaskKey(undefined);
-  //   }
-  // };
-
-  const connectWelldone = async () => {
+  const connectMetamask = async () => {
     // @ts-ignore
-    const { dapp } = window;
+    const { ethereum } = window;
 
-    if (dapp) {
+    if (ethereum) {
       try {
-        const accounts = await dapp.request("cosmos", {
-          method: "dapp:accounts",
+        const response = await ethereum.request({
+          method: "eth_requestAccounts",
         });
-        setWelldoneKey(accounts.cosmos.address);
-      } catch (error) {
-        console.log(error);
-      }
+        console.log(response);
+        setMetamaskKey(response);
+      } catch (error) {}
     }
   };
 
-  const disconnectKeplr = async () => {
+  const disconnectMetamask = async () => {
     // @ts-ignore
-    const { keplr } = window;
+    const { ethereum } = window;
 
-    if (welldoneKey && keplr) {
-      await keplr.disable();
+    if (metamaskKey && ethereum) {
+      await ethereum.request({
+        method: "eth_requestAccounts",
+        params: [{ eth_accounts: {} }],
+      });
+      setMetamaskKey(undefined);
     }
   };
+
+  // const connectWelldone = async () => {
+  //   // @ts-ignore
+  //   const { dapp } = window;
+
+  //   if (dapp) {
+  //     try {
+  //       const accounts = await dapp.request("cosmos", {
+  //         method: "dapp:accounts",
+  //       });
+  //       setWelldoneKey(accounts.cosmos.address);
+  //     } catch (error) {
+  //       console.log(error);
+  //     }
+  //   }
+  // };
+
+  // const disconnectKeplr = async () => {
+  //   // @ts-ignore
+  //   const { keplr } = window;
+
+  //   if (welldoneKey && keplr) {
+  //     await keplr.disable();
+  //   }
+  // };
 
   async function getStakeAccount(
     stakeAccountSeed: string,
@@ -210,81 +211,102 @@ function App() {
     }
   };
 
-  // const sendMetamaskTx = async () => {
-  //   // @ts-ignore
-  //   const { ethereum } = window;
-
-  //   try {
-  //     const transactionParameters = {
-  //       from: ethereum.selectedAddress,
-  //       to: ethereum.selectedAddress,
-  //       value: Number(30000000000000000).toString(16),
-  //       gasPrice: Number("3000000000000").toString(16),
-  //       gas: "0x2710",
-  //       // data: '',
-  //     };
-
-  //     const txHash = await ethereum.request({
-  //       method: "eth_sendTransaction",
-  //       params: [transactionParameters],
-  //     });
-
-  //     console.log(119, txHash);
-  //   } catch (error) {}
-  // };
-
-  const addChain = async () => {
-    const chainData = {
-      chainId: "osmo-test-4",
-      chainName: "Osmosis Testnet",
-      rpc: "https://osmosis-testnet-rpc.allthatnode.com:26657/",
-      rest: "https://osmosis-testnet-rpc.allthatnode.com:1317/",
-      bip44: {
-        coinType: 118,
-      },
-      bech32Config: {
-        bech32PrefixAccAddr: "osmo",
-        bech32PrefixAccPub: "osmopub",
-        bech32PrefixValAddr: "osmovaloper",
-        bech32PrefixValPub: "osmovaloperpub",
-        bech32PrefixConsAddr: "osmovalcons",
-        bech32PrefixConsPub: "osmovalconspub",
-      },
-      stakeCurrency: {
-        coinDenom: "OSMO",
-        coinMinimalDenom: "uosmo",
-        coinDecimals: 6,
-      },
-      currencies: [
-        {
-          coinDenom: "OSMO",
-          coinMinimalDenom: "uosmo",
-          coinDecimals: 6,
-        },
-      ],
-      feeCurrencies: [
-        {
-          coinDenom: "OSMO",
-          coinMinimalDenom: "uosmo",
-          coinDecimals: 6,
-        },
-      ],
-      explorer: "https://testnet.mintscan.io/osmosis-testnet",
-      coinType: 118,
-      // gasPriceStep: {
-      //   low: 0.01,
-      //   average: 0.025,
-      //   high: 0.05
-      // }
-    };
-
+  const sendMetamaskTx = async () => {
     // @ts-ignore
-    const { dapp } = window;
-    await dapp.request("cosmos", {
-      method: "dapp:addChain",
-      params: [chainData],
-    });
+    const { ethereum } = window;
+
+    try {
+      const web3 = new Web3(ethereum);
+      const PolygonContract = new web3.eth.Contract(
+        abi,
+        "0x5DDBeE6aD14852d5F78b6eeb6b040391821ff45C"
+      );
+      console.log(111, PolygonContract);
+      const result = await PolygonContract.methods
+        .unbonds_new("0xF1238CE800C5596DC7F7F2451c901E0fFABb0A53", 2)
+        .call();
+      console.log("result: ", result);
+
+      // const rawParam = await fetch(
+      //   "https://builder.staking.dsrv.com/polygon/migration/tx",
+      //   {
+      //     method: "POST",
+      //     headers: {
+      //       "Content-Type": "application/json",
+      //     },
+      //     body: JSON.stringify({
+      //       msg_sender: String(metamaskKey),
+      //       from_validator_id: "64",
+      //       to_validator_id: "10",
+      //       amount: "100000000000000000",
+      //     }),
+      //   }
+      // ).then((response) => {
+      //   return response.json();
+      // });
+      // const transactionParameters = rawParam.params[0];
+      // const txHash = await ethereum.request({
+      //   method: "eth_sendTransaction",
+      //   params: [transactionParameters],
+      // });
+      // console.log(119, txHash);
+    } catch (error) {
+      console.log(`error: ${error}`);
+    }
   };
+
+  // const addChain = async () => {
+  //   const chainData = {
+  //     chainId: "osmo-test-4",
+  //     chainName: "Osmosis Testnet",
+  //     rpc: "https://osmosis-testnet-rpc.allthatnode.com:26657/",
+  //     rest: "https://osmosis-testnet-rpc.allthatnode.com:1317/",
+  //     bip44: {
+  //       coinType: 118,
+  //     },
+  //     bech32Config: {
+  //       bech32PrefixAccAddr: "osmo",
+  //       bech32PrefixAccPub: "osmopub",
+  //       bech32PrefixValAddr: "osmovaloper",
+  //       bech32PrefixValPub: "osmovaloperpub",
+  //       bech32PrefixConsAddr: "osmovalcons",
+  //       bech32PrefixConsPub: "osmovalconspub",
+  //     },
+  //     stakeCurrency: {
+  //       coinDenom: "OSMO",
+  //       coinMinimalDenom: "uosmo",
+  //       coinDecimals: 6,
+  //     },
+  //     currencies: [
+  //       {
+  //         coinDenom: "OSMO",
+  //         coinMinimalDenom: "uosmo",
+  //         coinDecimals: 6,
+  //       },
+  //     ],
+  //     feeCurrencies: [
+  //       {
+  //         coinDenom: "OSMO",
+  //         coinMinimalDenom: "uosmo",
+  //         coinDecimals: 6,
+  //       },
+  //     ],
+  //     explorer: "https://testnet.mintscan.io/osmosis-testnet",
+  //     coinType: 118,
+  //     // gasPriceStep: {
+  //     //   low: 0.01,
+  //     //   average: 0.025,
+  //     //   high: 0.05
+  //     // }
+  //   };
+
+  //   // @ts-ignore
+  //   const { dapp } = window;
+  //   await dapp.request("cosmos", {
+  //     method: "dapp:addChain",
+  //     params: [chainData],
+  //   });
+  // };
 
   // detect phantom provider exists
   useEffect(() => {
@@ -298,7 +320,7 @@ function App() {
     <div className="App">
       <header className="App-header">
         <h2>Connect to Wallet</h2>
-        {provider && !walletKey && !welldoneKey && (
+        {provider && !walletKey && !metamaskKey && (
           <>
             <button
               style={{
@@ -311,7 +333,7 @@ function App() {
             >
               Connect to Phantom Wallet
             </button>
-            {/* <button
+            <button
               style={{
                 fontSize: "16px",
                 padding: "15px",
@@ -321,8 +343,8 @@ function App() {
               onClick={connectMetamask}
             >
               Connect to Meta mask
-            </button> */}
-            <button
+            </button>
+            {/* <button
               style={{
                 fontSize: "16px",
                 padding: "15px",
@@ -332,11 +354,11 @@ function App() {
               onClick={connectWelldone}
             >
               Connect to Welldone
-            </button>
+            </button> */}
           </>
         )}
 
-        {provider && walletKey && !welldoneKey && (
+        {provider && walletKey && !metamaskKey && (
           <div>
             <p>
               <>Connected account {walletKey}</>
@@ -368,7 +390,7 @@ function App() {
             </button>
           </div>
         )}
-        {/* {provider && !walletKey && metamaskKey && !WelldoneKey && (
+        {provider && !walletKey && metamaskKey && (
           <div>
             <p>
               <>Connected account {metamaskKey}</>
@@ -399,9 +421,9 @@ function App() {
               SendTX
             </button>
           </div>
-        )} */}
+        )}
 
-        {provider && !walletKey && welldoneKey && (
+        {/* {provider && !walletKey && welldoneKey && (
           <div>
             <p>
               <>Connected account {welldoneKey}</>
@@ -432,7 +454,7 @@ function App() {
               add Test Chain
             </button>
           </div>
-        )}
+        )} */}
 
         <p>
           Built by{" "}
