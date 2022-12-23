@@ -12,9 +12,7 @@ import {
 // import Web3  from "web3";
 import { WelldoneWalletAdapter } from "./welldone";
 import "./App.css";
-import { providers, transactions, utils } from "near-api-js";
-import { ConnectionInfo } from "near-api-js/lib/utils/web";
-import BN from "bn.js";
+import { WalletConnection, connect, keyStores, Near } from "near-api-js";
 
 // const web3 = new Web3("https://ethereum-rinkeby-rpc.allthatnode.com");
 
@@ -46,6 +44,24 @@ interface PhantomProvider {
   request: (method: PhantomRequestMethod, params: any) => Promise<unknown>;
 }
 
+// const connectionConfig = {
+//   networkId: "mainnet",
+//   keyStore: new keyStores.BrowserLocalStorageKeyStore(),
+//   nodeUrl: "https://rpc.mainnet.near.org",
+//   walletUrl: "https://wallet.mainnet.near.org",
+//   helperUrl: "https://helper.mainnet.near.org",
+//   explorerUrl: "https://explorer.mainnet.near.org",
+// };
+
+const connectionConfig = {
+  networkId: "mainnet",
+  keyStore: new keyStores.BrowserLocalStorageKeyStore(),
+  nodeUrl: "https://rpc.mainnet.near.org",
+  walletUrl: "https://wallet.mainnet.near.org",
+  helperUrl: "https://helper.mainnet.near.org",
+  explorerUrl: "https://explorer.mainnet.near.org",
+};
+
 function App() {
   const [provider, setProvider] = useState<PhantomProvider | undefined>(
     undefined
@@ -55,7 +71,7 @@ function App() {
   );
 
   // const [metamaskKey, setMetamaskKey] = useState<string>();
-  const [welldoneKey, setWelldoneKey] = useState<string>();
+  const [nearKey, setNearKey] = useState<string>();
 
   /**
    * @description gets Phantom provider, if it exists
@@ -99,57 +115,33 @@ function App() {
     }
   };
 
-  // const connectMetamask = async () => {
-  //   // @ts-ignore
-  //   const { ethereum } = window;
+  const connectNear = async () => {
+    // connect to NEAR
+    const nearConnection = await connect(connectionConfig);
 
-  //   if (ethereum) {
-  //     try {
-  //       const response = await ethereum.request({
-  //         method: "eth_requestAccounts",
-  //       });
-  //       console.log(response);
-  //       setMetamaskKey(response);
-  //     } catch (error) {}
-  //   }
-  // };
-
-  // const disconnectMetamask = async () => {
-  //   // @ts-ignore
-  //   const { ethereum } = window;
-
-  //   if (metamaskKey && ethereum) {
-  //     await ethereum.request({
-  //       method: "eth_requestAccounts",
-  //       params: [{ eth_accounts: {} }],
-  //     });
-  //     setMetamaskKey(undefined);
-  //   }
-  // };
-
-  const connectWelldone = async () => {
-    // @ts-ignore
-    const { dapp } = window;
-
-    if (dapp) {
-      try {
-        const accounts = await dapp.request("near", {
-          method: "dapp:accounts",
-        });
-        setWelldoneKey(accounts.near.address);
-      } catch (error) {
-        console.log(error);
-      }
+    // create wallet connection
+    const walletConnection = new WalletConnection(nearConnection, "");
+    if (!walletConnection.isSignedIn()) {
+      walletConnection.requestSignIn({
+        successUrl: "http://localhost:3000/",
+        failureUrl: "https://localhost:3000/", // optional redirect URL on failure
+      });
+    } else if (walletConnection.isSignedIn()) {
+      setNearKey(walletConnection.getAccountId());
+      const account = await nearConnection.account(
+        walletConnection.getAccountId()
+      );
+      console.log(account);
     }
   };
 
-  const disconnectWelldone = async () => {
-    // @ts-ignore
-    const { dapp } = window;
+  const disconnectNear = async () => {
+    // connect to NEAR
+    const nearConnection = await connect(connectionConfig);
 
-    if (welldoneKey && dapp) {
-      await dapp.disable();
-    }
+    // create wallet connection
+    const walletConnection = new WalletConnection(nearConnection, "");
+    walletConnection.signOut();
   };
 
   async function getStakeAccount(
@@ -213,42 +205,7 @@ function App() {
     }
   };
 
-  const sendNearTx = async () => {
-    // @ts-ignore
-
-    const { dapp } = window;
-    const accounts = await dapp.request("near", {
-      method: "dapp:accounts",
-    });
-    const rpc: ConnectionInfo = "https://rpc.testnet.near.org";
-
-    const provider = new providers.JsonRpcProvider(rpc);
-    const accountLocal = accounts.address;
-    const publicKey = accounts.pubKey;
-    const signerId = accountLocal;
-    const accessKey = await provider.query(
-      `access_key/${signerId}/${publicKey}`,
-      ""
-    );
-    const actions = [transactions.transfer(new BN(10))];
-    const recentBlockHash = utils.serialize.base_decode(accessKey.block_hash);
-
-    const transaction = transactions.createTransaction(
-      accountLocal,
-      utils.PublicKey.fromString(publicKey),
-      "9bfd12934cd6fdd09199e2e267803c70bd7c6cb40832ac6f29811948dde2b723",
-      accessKey.nonce + 1,
-      actions,
-      recentBlockHash
-    );
-
-    const bytes = Buffer.from(transaction.encode()).toString("base64");
-
-    await dapp.request("near", {
-      method: "dapp:sendTransaction",
-      params: [`${bytes}`],
-    });
-  };
+  const sendNearTx = async () => {};
 
   // detect phantom provider exists
   useEffect(() => {
@@ -262,7 +219,7 @@ function App() {
     <div className="App">
       <header className="App-header">
         <h2>Connect to Wallet</h2>
-        {provider && !walletKey && !welldoneKey && (
+        {provider && !walletKey && !nearKey && (
           <>
             <button
               style={{
@@ -282,14 +239,14 @@ function App() {
                 fontWeight: "bold",
                 borderRadius: "5px",
               }}
-              onClick={connectWelldone}
+              onClick={connectNear}
             >
               Connect to Welldone
             </button>
           </>
         )}
 
-        {provider && walletKey && !welldoneKey && (
+        {provider && walletKey && !nearKey && (
           <div>
             <p>
               <>Connected account {walletKey}</>
@@ -322,10 +279,10 @@ function App() {
           </div>
         )}
 
-        {provider && !walletKey && welldoneKey && (
+        {provider && !walletKey && nearKey && (
           <div>
             <p>
-              <>Connected account {welldoneKey}</>
+              <>Connected account {nearKey}</>
             </p>
 
             <button
@@ -336,7 +293,7 @@ function App() {
                 borderRadius: "5px",
                 margin: "15px auto",
               }}
-              onClick={disconnectWelldone}
+              onClick={disconnectNear}
             >
               Disconnect
             </button>
